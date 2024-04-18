@@ -1,0 +1,406 @@
+---
+title: "STHW9"
+author: "Mark Herndon"
+output: html_document
+date: "2024-04-16"
+---
+
+git: 
+
+# Problem 1
+
+
+**Part A.)**
+
+
+```{r, echo=FALSE, message=FALSE}
+
+library(ggplot2)
+
+library(mosaic)
+
+library(tibble)
+
+library(dplyr)
+
+library(MatchIt)
+
+library(tidyr)
+
+
+
+turnout <- read.csv("turnout.csv")
+
+
+# Prop of those who got a GOTV call that actually voted in 1998 vs. those who didn't from our data
+
+
+prop_table <- prop(voted1998 == 1 ~ GOTV_call, data=turnout)
+
+
+prop_table
+
+
+# The differnece in those proportions from our data
+
+
+
+diff <- diffprop(voted1998 == 1 ~ GOTV_call, data=turnout)
+
+
+diff
+
+
+# diffprop confidence interval
+
+
+diff_voterprop <- do(10000)*diffprop(voted1998 == 1 ~ GOTV_call, data=resample(turnout))
+
+
+boot_voteprop <- ggplot(data= diff_voterprop) + 
+  geom_histogram(aes(x=diffprop))
+
+
+ #boot_voteprop
+
+
+
+confint(diff_voterprop, level=0.95)
+
+
+```
+
+
+
+**Part A.)**
+
+
+
+
+```{r, echo=FALSE, message=FALSE}
+
+
+
+
+# Creating dummy variable to group recieving a call and voting in 98
+
+turnout <- turnout %>%
+  mutate(
+    call_and_voted = ifelse(GOTV_call == 1 & voted1998 == 1, 1, 0))
+
+
+
+# Fist we'll look at the age variable and verify it
+# Does your age make you more likely to receive a GOTV call and vote?
+
+
+
+# Bar plot divided into age groups
+
+ggplot(turnout) + geom_bar(aes(x = cut(AGE, breaks = c(0, 18, 25, 35, 45, 55, 65, Inf), 
+        labels = c("Sub 18", "18-24", "25-34", "35-44", "45-54", "55-64", "65+"), include.lowest = TRUE),
+        fill = factor(voted1998)))  + facet_wrap(~ GOTV_call) + labs( title = "Comparing Age to Voters in 1998 who recieved GOTV call or not", x = "Age", y = "Count", fill = "Voted in 1998"  )
+
+
+
+# Next we'll represent the barplot in a table
+
+turnout <- turnout %>%
+  mutate(Age_Group = cut(AGE, breaks = c(0, 18, 25, 35, 45, 55, 65, Inf), 
+  labels = c("Sub 18", "18-24", "25-34", "35-44", "45-54", "55-64", "65+"),
+  include.lowest = TRUE))
+
+
+
+age_turnout_tbl <- turnout %>%
+  group_by(call_and_voted, Age_Group) %>% summarise(Count = n()) %>%
+  spread(key = call_and_voted, value = Count)
+  
+
+age_turnout_tbl
+
+
+
+
+# Does being affiliated w/ a major party make you more likely to recieve a GOTV call and vote?
+
+
+# Bar plot
+
+
+ggplot(turnout) + geom_bar(aes(x = factor(GOTV_call), fill = factor(voted1998))) + 
+  
+ facet_wrap( ~ factor(MAJORPTY)) + labs( title = "Comparing party membership to Voters in 1998 who recieved GOTV call or not", x = "Received GOTV Call", y = "Count", fill = "Voted in 1998"  )
+
+
+
+# Diff in prop between those who got a call and voted who are in a party or not
+
+
+
+diffprop(MAJORPTY ~ call_and_voted, data = turnout)
+
+
+
+
+# Does voting in 1996 effect your likliness to receive a GOTV call and vote in 1998?
+
+# bar plot
+
+
+ggplot(turnout) + geom_bar(aes(x = factor(GOTV_call), fill = factor(voted1998))) + 
+  
+ facet_wrap( ~ factor(voted1996)) + labs( title = "Comparing voters in 1996 to Voters in 1998 who recieved GOTV call or not", x = "Received GOTV Call", y = "Count", fill = "Voted in 1998"  )
+
+
+
+# diff in prop between those who got a call and voted who also voted in 1996 and those who didn't
+
+diffprop(voted1996 ~ call_and_voted, data = turnout)
+
+
+
+
+```
+
+
+
+
+
+**Part C.)**
+
+
+
+
+```{r, echo=FALSE, message=FALSE}
+
+
+# Creating matched data set
+
+turnout_matched = matchit(GOTV_call ~ AGE + voted1996 + MAJORPTY,
+                                 data = turnout, ratio=5) %>%
+  match.data
+
+
+
+# Repeating steps with new dataset to observe the differnces in plots and stats
+
+
+# AGE
+
+
+
+ggplot(turnout_matched) + geom_bar(aes(x = cut(AGE, breaks = c(0, 18, 25, 35, 45, 55, 65, Inf), 
+        labels = c("Sub 18", "18-24", "25-34", "35-44", "45-54", "55-64", "65+"), include.lowest = TRUE),
+        fill = factor(voted1998)))  + facet_wrap(~ GOTV_call) + labs( title = "Comparing Age to Voters in 1998 who recieved GOTV call or not", x = "Age", y = "Count", fill = "Voted in 1998"  )
+
+
+
+turnout_matched <- turnout_matched %>%
+  mutate(Age_Group = cut(AGE, breaks = c(0, 18, 25, 35, 45, 55, 65, Inf), 
+  labels = c("Sub 18", "18-24", "25-34", "35-44", "45-54", "55-64", "65+"),
+  include.lowest = TRUE))
+
+
+
+age_turnout_M_tbl <- turnout_matched %>%
+  group_by(call_and_voted, Age_Group) %>% summarise(Count = n()) %>%
+  spread(key = call_and_voted, value = Count)
+  
+
+age_turnout_M_tbl
+
+
+
+
+# MAJORPTY
+
+
+
+ggplot(turnout_matched) + geom_bar(aes(x = factor(GOTV_call), fill = factor(voted1998))) + 
+  
+  facet_wrap( ~ factor(MAJORPTY)) + labs( title = "Comparing party membership to Voters in 1998 who recieved GOTV call or not", x = "Received GOTV Call", y = "Count", fill = "Voted in 1998"  )
+
+
+
+diffprop(MAJORPTY ~ call_and_voted, data = turnout_matched)
+
+
+
+
+
+# 1996 VOTERS
+
+
+
+
+
+ggplot(turnout_matched) + geom_bar(aes(x = factor(GOTV_call), fill = factor(voted1998))) + 
+  
+ facet_wrap( ~ factor(voted1996)) + labs( title = "Comparing voters in 1996 to Voters in 1998 who recieved GOTV call or not", x = "Received GOTV Call", y = "Count", fill = "Voted in 1998"  )
+
+
+
+diffprop(voted1996 ~ call_and_voted, data = turnout_matched)
+
+
+
+
+
+
+
+
+# Using matched data to get a better estimate on how GITV_calls effect voter turnout
+
+
+
+
+match_prop_table <- prop(voted1998 == 1 ~ GOTV_call, data=turnout_matched)
+
+
+match_prop_table
+
+
+# The differnece in those proportions from our data
+
+
+
+match_diff <- diffprop(voted1998 == 1 ~ GOTV_call, data=turnout_matched)
+
+
+match_diff
+
+
+# diffprop confidence interval
+
+
+match_diff_voterprop <- do(10000)*diffprop(voted1998 == 1 ~ GOTV_call, data=resample(turnout_matched))
+
+
+match_boot_voteprop <- ggplot(data= match_diff_voterprop) + 
+  geom_histogram(aes(x=diffprop))
+
+
+
+
+#match_boot_voteprop
+
+confint(match_diff_voterprop, level=0.95)
+
+
+
+
+
+
+```
+
+
+## Conclusion:
+
+**From my analysis I conclude that the effect GOTV calls had on the likelihood of voting in 1998 is not as significant as the original data made it out to be. From the original voter turnout data, I was able to find a difference in the proportion between voters who had and had not received a GOTV call to be 0.20 or 20% with 95% confidence. When identifying and accounting for confounders, and creating a matched dataset. The difference in proportion between voters who had and had not received a GOTV call was now 0.07 or 7% with 95% confidence, which was a significant decrease in terms of our sample size. While this still suggests that GOTV calls had some impact on voter turnout as it holds statistical significance, the influence is not as substantial as previously thought. Therefore, it may not be practical to assert that GOTV calls were a major contributing factor to the likelihood of someone voting in the 1998 election.**
+
+
+# Problem 2
+
+
+
+**Part A.)**
+
+```{r, echo=FALSE, message=FALSE}
+
+
+solder <- read.csv("solder.csv")
+
+
+# Plot for opening size and skips
+
+ggplot(data = solder) + geom_boxplot(aes(x = Opening, y = skips)) +
+  labs(title = "Opening Size vs. Number of Skips", x = "Opening Size", y = "Number of Skips") 
+ 
+
+```
+
+> From this boxplot that visualizes the relationship between the size of the opening on the Solder gun, and the number of times a circuit bored was 'skipped' during the manufacturing process. We can see that a small opening tends to be correlated with having more skips during the manufacturing process, in an almost gradual trend as each median gets sequentially higher in count.
+
+
+
+```{r, echo=FALSE, message=FALSE}
+
+
+# Plot for Solder Thickness vs Skips
+
+
+ggplot(data = solder) + geom_boxplot(aes(x = Solder, y = skips)) +
+  labs(title = "Solder thickness vs. Number of Skips", x = "Solder Thickness", y = "Number of Skips") 
+ 
+
+
+
+
+
+```
+
+> From this boxplot that visualizes the relationship between the the thickness of the alloy used for soldering, and the number of times a circuit bored was 'skipped' during the manufacturing process. We can see that a thinner alloy overall leads to more skips as the median is higher, and the range of data points is shifted higher than that of thick.
+
+
+
+
+
+**Part B.)**
+
+
+```{r, echo=FALSE, message=FALSE}
+
+
+
+
+model_skip <- lm(skips ~ Opening + Solder + Opening:Solder, data = solder)
+
+
+coef(model_skip) %>%
+  round(0)
+
+
+confint(model_skip, level = 0.95) %>% round(0)
+
+
+
+```
+
+
+**Part C.)**
+
+
+> *Interpreting Coefficients:*
+
+> The Intercept coefficient is our baseline expected skips when all predictors are at the refrence condtioins, which is a large opening for the solder gun and a thick soldering alloy is 0 skips.
+
+> The OpeningM coefficient means that changing the solder gun opening from Large to Medium, and keeping the alloy thick will yield an additional 2 skips compared to the baseline. So the main effect of OpeningM in isolation is 2 skips.
+
+> The OpeningS coefficient means that changing the solder gun opening from Large to Small, and keeping the alloy thick will yield an additional 5 skips compared to the baseline. So the main effect of OpeningS in isolation is 5 skips.
+
+> The SolderThin coefficient means that changing the thickness of the alloy to thin, and keeping the opening Large will yield an additional 2 skips. This is the main effect of the SolderThin variable in isolation.
+
+> The OpeningM:SolderThin coeffiecirnt shows that the interaction between the combined effects of changinging the opening from large to medium, as well as the alloy thickness from thick to thin results in 1 fewer skip than expected when the effects of a medium opening and a thin alloy are added.
+
+> The OpeningS:SolderThin coeffiecirnt shows that the interaction between the combined effects of changinging the opening from large to Small, as well as the alloy thickness from thick to thin results in 10 more skips than expected when the effects of a small opening and thin alloy are added.
+
+
+
+
+**Part D.)**
+
+
+> The best combination of solder gun opening to alloy thickness to reduce the number of skips during the manufacturing process would be to have a Large opening and thick solder alloy. From our regression model with estimating the number of skips while using the predictor variables for Openings and Solder. We are able to conclude that the baseline/intercept of the model, the large opening and thick solder combination, resulted in the fewest skips which was 0. Even the OpeningM:SolderThin interaction that reduced the expected outcome by 1, did not offset the additive effects of its main parts. That being said, in a practical sense, if there was potentially a cost factor when determing which combination to use, it would also be favorable to use a medium opening with a thick alloy, or a large opening with a thin alloy as they both only add 2 more expected skips.
+
+
+
+
+
+
+
+
+
+
+
+
