@@ -1,6 +1,6 @@
 ---
 title: "STHW9"
-author: "Mark Herndon"
+author: "Mark Herndon; RMH3867"
 output: html_document
 date: "2024-04-16"
 ---
